@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SaneScan app icon. Rendered to AppIcon.icns by the Makefile (ImageMagick + iconutil). -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3B82F6"/>
+      <stop offset="1" stop-color="#1E3A8A"/>
+    </linearGradient>
+    <linearGradient id="lid" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F8FAFC"/>
+      <stop offset="1" stop-color="#CBD5E1"/>
+    </linearGradient>
+  </defs>
+
+  <!-- macOS squircle-ish background -->
+  <rect x="100" y="100" width="824" height="824" rx="190" ry="190" fill="url(#bg)"/>
+
+  <!-- scanner body -->
+  <rect x="192" y="560" width="640" height="190" rx="40" ry="40" fill="#0F172A" opacity="0.9"/>
+  <rect x="232" y="600" width="560" height="110" rx="20" ry="20" fill="#1E293B"/>
+  <!-- buttons -->
+  <circle cx="730" cy="655" r="16" fill="#22C55E"/>
+  <circle cx="774" cy="655" r="16" fill="#64748B"/>
+
+  <!-- page being scanned, slightly tilted, sticking out of the scanner -->
+  <g transform="rotate(-6 512 420)">
+    <rect x="352" y="200" width="320" height="380" rx="18" ry="18" fill="#FFFFFF"/>
+    <rect x="400" y="262" width="224" height="22" rx="11" ry="11" fill="#94A3B8"/>
+    <rect x="400" y="322" width="224" height="22" rx="11" ry="11" fill="#CBD5E1"/>
+    <rect x="400" y="382" width="224" height="22" rx="11" ry="11" fill="#CBD5E1"/>
+    <rect x="400" y="442" width="150" height="22" rx="11" ry="11" fill="#CBD5E1"/>
+    <!-- scan light sweeping over the page -->
+    <rect x="340" y="376" width="344" height="64" rx="32" ry="32" fill="#4ADE80" opacity="0.35"/>
+    <rect x="340" y="400" width="344" height="16" rx="8" ry="8" fill="#4ADE80"/>
+  </g>
+
+  <!-- lid edge in front of the page -->
+  <rect x="192" y="540" width="640" height="48" rx="24" ry="24" fill="url(#lid)"/>
+</svg>

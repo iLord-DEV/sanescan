@@ -2,12 +2,17 @@
 import PackageDescription
 
 let package = Package(
-    name: "PageScan",
+    name: "SaneScan",
     platforms: [.macOS(.v14)],
     targets: [
         .executableTarget(
-            name: "PageScan",
-            path: "Sources/PageScan"
-        )
+            name: "SaneScan",
+            path: "Sources/SaneScan"
+        ),
+        .testTarget(
+            name: "SaneScanTests",
+            dependencies: ["SaneScan"],
+            path: "Tests/SaneScanTests"
+        ),
     ]
 )

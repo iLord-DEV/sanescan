@@ -20,40 +20,40 @@ struct ContentView: View {
             actionBar
         }
         .task { await model.detectScanner() }
-        .alert("Fehler", isPresented: errorPresented, presenting: model.errorMessage) { _ in
+        .alert("Error", isPresented: errorPresented, presenting: model.errorMessage) { _ in
             Button("OK", role: .cancel) {}
         } message: { message in
             Text(message)
         }
-        .alert("PDF gespeichert", isPresented: savedPresented, presenting: model.savedPDF) { url in
-            Button("Im Finder zeigen") {
+        .alert("PDF saved", isPresented: savedPresented, presenting: model.savedPDF) { url in
+            Button("Show in Finder") {
                 NSWorkspace.shared.activateFileViewerSelecting([url])
             }
-            Button("Neues Dokument") { model.newDocument() }
+            Button("New Document") { model.newDocument() }
             Button("OK", role: .cancel) {}
         } message: { url in
             Text(url.path)
         }
         .confirmationDialog(
-            "Datei ersetzen?",
+            "Replace file?",
             isPresented: overwritePresented,
             presenting: model.overwriteCandidate
         ) { url in
-            Button("Ersetzen", role: .destructive) {
+            Button("Replace", role: .destructive) {
                 Task { await model.createPDF(overwrite: true) }
             }
-            Button("Abbrechen", role: .cancel) {}
+            Button("Cancel", role: .cancel) {}
         } message: { url in
-            Text("\(url.lastPathComponent) existiert bereits in \(url.deletingLastPathComponent().lastPathComponent).")
+            Text("\(url.lastPathComponent) already exists in \(url.deletingLastPathComponent().lastPathComponent).")
         }
         .confirmationDialog(
-            "Alle gescannten Seiten verwerfen?",
+            "Discard all scanned pages?",
             isPresented: $model.confirmNewDocument
         ) {
-            Button("Verwerfen", role: .destructive) { model.newDocument() }
-            Button("Abbrechen", role: .cancel) {}
+            Button("Discard", role: .destructive) { model.newDocument() }
+            Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Die Seiten wurden noch nicht als PDF gespeichert.")
+            Text("The pages have not been saved as a PDF yet.")
         }
     }
 
@@ -62,23 +62,40 @@ struct ContentView: View {
     private var scannerStatusBar: some View {
         HStack(spacing: 8) {
             Circle()
-                .fill(model.scannerName != nil ? Color.green : Color.red)
+                .fill(model.selectedDevice != nil ? Color.green : Color.red)
                 .frame(width: 10, height: 10)
-            Text(scannerStatusText)
+                .accessibilityHidden(true)
+            if model.devices.count > 1 {
+                Picker("Scanner", selection: $model.selectedDeviceID) {
+                    ForEach(model.devices) { device in
+                        Text(device.name).tag(Optional(device.id))
+                    }
+                }
+                .fixedSize()
+                .disabled(model.isBusy)
+                Text("connected")
+            } else {
+                Text(scannerStatusText)
+            }
+            if let area = model.scanAreaDescription {
+                Text("· Scan area \(area)")
+                    .foregroundStyle(.secondary)
+            }
             Spacer()
-            Button("Erneut suchen") {
+            Button("Search Again") {
                 Task { await model.detectScanner() }
             }
-            .disabled(model.scannerSearching)
+            .disabled(model.scannerSearching || model.isBusy)
         }
-        .accessibilityElement(children: .combine)
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
     }
 
     private var scannerStatusText: String {
-        if let name = model.scannerName { return "\(name) verbunden" }
-        return model.scannerSearching ? "Suche Scanner …" : "Kein Scanner gefunden"
+        if let name = model.scannerName { return String(localized: "\(name) connected") }
+        return model.scannerSearching
+            ? String(localized: "Searching for scanner…")
+            : String(localized: "No scanner found")
     }
 
     private var pageList: some View {
@@ -100,10 +117,10 @@ struct ContentView: View {
                     .frame(width: 56, height: 72)
                     .background(Color.white)
                     .overlay(Rectangle().stroke(Color.secondary.opacity(0.3)))
-                    Text("Seite \(index + 1)")
+                    Text("Page \(index + 1)")
                 }
                 .padding(.vertical, 2)
-                .accessibilityLabel("Seite \(index + 1)")
+                .accessibilityLabel(Text("Page \(index + 1)"))
                 .tag(page.id)
             }
             .onMove { source, destination in
@@ -119,7 +136,7 @@ struct ContentView: View {
         .onDeleteCommand { model.removeSelected() }
         .overlay {
             if model.pages.isEmpty {
-                Text("Noch keine Seiten")
+                Text("No pages yet")
                     .foregroundStyle(.secondary)
             }
         }
@@ -135,7 +152,11 @@ struct ContentView: View {
                 VStack(spacing: 8) {
                     Image(systemName: "scanner")
                         .font(.system(size: 48))
-                    Text("Seite einlegen und „Seite scannen“ drücken")
+                    if model.usesFeeder {
+                        Text("Load pages into the feeder and press “Scan Stack”")
+                    } else {
+                        Text("Place a page on the glass and press “Scan Page”")
+                    }
                 }
                 .foregroundStyle(.secondary)
             }
@@ -143,38 +164,62 @@ struct ContentView: View {
     }
 
     private var settingsBar: some View {
-        HStack(spacing: 16) {
-            TextField("Dateiname", text: $model.documentName, prompt: Text(model.resolvedFileName))
-                .textFieldStyle(.roundedBorder)
-                .frame(maxWidth: 260)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 16) {
+                TextField("File name", text: $model.documentName, prompt: Text(model.resolvedFileName))
+                    .textFieldStyle(.roundedBorder)
+                    .frame(maxWidth: 320)
 
-            Picker("Auflösung", selection: $model.dpi) {
-                ForEach(ScanModel.dpiOptions, id: \.self) { value in
-                    Text("\(value) dpi").tag(value)
+                Toggle("Text layer (OCR)", isOn: $model.ocrEnabled)
+                    .disabled(!model.ocrAvailable)
+                    .help(model.ocrAvailable ? "Embed searchable text" : "ocrmypdf is not installed")
+
+                Spacer()
+
+                Button {
+                    chooseOutputFolder()
+                } label: {
+                    Label(model.outputFolder.lastPathComponent, systemImage: "folder")
                 }
+                .help("Output folder: \(model.outputFolder.path)")
+                .accessibilityLabel(Text("Choose output folder, currently \(model.outputFolder.lastPathComponent)"))
             }
-            .fixedSize()
 
-            Picker("Modus", selection: $model.colorMode) {
-                ForEach(ColorMode.allCases) { mode in
-                    Text(mode.label).tag(mode)
+            HStack(spacing: 16) {
+                Picker("Resolution", selection: $model.dpi) {
+                    ForEach(model.dpiOptions, id: \.self) { value in
+                        Text("\(value) dpi").tag(value)
+                    }
                 }
+                .fixedSize()
+
+                Picker("Mode", selection: $model.colorMode) {
+                    ForEach(model.modeOptions, id: \.self) { mode in
+                        Text(ScanModeLabel.label(for: mode)).tag(mode)
+                    }
+                }
+                .fixedSize()
+
+                Picker("Paper", selection: $model.paperSize) {
+                    ForEach(PaperSize.allCases) { size in
+                        Text(size.label).tag(size)
+                    }
+                }
+                .fixedSize()
+                .help("Scan area, limited to what the scanner can cover")
+
+                if model.sourceOptions.count > 1 {
+                    Picker("Source", selection: $model.source) {
+                        ForEach(model.sourceOptions, id: \.self) { source in
+                            Text(source).tag(Optional(source))
+                        }
+                    }
+                    .fixedSize()
+                    .help("The flatbed scans one page, the feeder every page loaded")
+                }
+
+                Spacer()
             }
-            .fixedSize()
-
-            Toggle("Textebene (OCR)", isOn: $model.ocrEnabled)
-                .disabled(!model.ocrAvailable)
-                .help(model.ocrAvailable ? "Durchsuchbaren Text einbetten" : "ocrmypdf ist nicht installiert")
-
-            Spacer()
-
-            Button {
-                chooseOutputFolder()
-            } label: {
-                Label(model.outputFolder.lastPathComponent, systemImage: "folder")
-            }
-            .help("Zielordner: \(model.outputFolder.path)")
-            .accessibilityLabel("Zielordner wählen, aktuell \(model.outputFolder.lastPathComponent)")
         }
         .disabled(model.isBusy)
         .padding(.horizontal, 16)
@@ -186,15 +231,19 @@ struct ContentView: View {
             Button {
                 Task { await model.scanPage() }
             } label: {
-                Label("Seite \(model.pages.count + 1) scannen", systemImage: "scanner")
+                if model.usesFeeder {
+                    Label("Scan Stack", systemImage: "scanner")
+                } else {
+                    Label("Scan Page \(model.pages.count + 1)", systemImage: "scanner")
+                }
             }
             .buttonStyle(.borderedProminent)
-            .disabled(model.isBusy || model.scannerName == nil)
+            .disabled(model.isBusy || model.selectedDevice == nil)
 
-            Button("Seite entfernen") { model.removeSelected() }
+            Button("Remove Page") { model.removeSelected() }
                 .disabled(model.selection == nil || model.isBusy)
 
-            Button("Neues Dokument") { model.requestNewDocument() }
+            Button("New Document") { model.requestNewDocument() }
                 .disabled(model.pages.isEmpty || model.isBusy)
 
             Spacer()
@@ -211,7 +260,7 @@ struct ContentView: View {
             Button {
                 Task { await model.createPDF() }
             } label: {
-                Label("PDF erstellen", systemImage: "doc.richtext")
+                Label("Create PDF", systemImage: "doc.richtext")
             }
             .disabled(model.pages.isEmpty || model.isBusy)
         }
@@ -248,8 +297,8 @@ struct ContentView: View {
         panel.canChooseFiles = false
         panel.canCreateDirectories = true
         panel.directoryURL = model.outputFolder
-        panel.prompt = "Auswählen"
-        panel.message = "Ordner für die fertigen PDFs"
+        panel.prompt = String(localized: "Choose")
+        panel.message = String(localized: "Folder for the finished PDFs")
         if panel.runModal() == .OK, let url = panel.url {
             model.outputFolder = url
         }
@@ -268,7 +317,7 @@ private struct PagePreview: View {
                     .resizable()
                     .scaledToFit()
                     .shadow(radius: 4)
-                    .accessibilityLabel("Vorschau der gescannten Seite")
+                    .accessibilityLabel(Text("Preview of the scanned page"))
             } else {
                 ProgressView()
             }

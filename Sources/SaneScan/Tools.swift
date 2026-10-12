@@ -17,10 +17,11 @@ enum ToolError: LocalizedError {
         switch self {
         case .missing(let tool):
             let hint = Tools.installHints[tool] ?? "brew install \(tool)"
-            return "\(tool) wurde nicht gefunden. Installation: \(hint)"
+            return String(localized: "\(tool) was not found. Install it with: \(hint)")
         case .failed(let tool, let status, let stderr):
             let detail = stderr.trimmingCharacters(in: .whitespacesAndNewlines)
-            return "\(tool) ist fehlgeschlagen (Status \(status)).\(detail.isEmpty ? "" : "\n\(detail)")"
+            let message = String(localized: "\(tool) failed with status \(Int(status)).")
+            return detail.isEmpty ? message : message + "\n" + detail
         }
     }
 }

@@ -1,0 +1,80 @@
+/* SaneScan – German localization. Keys are the English source strings. */
+
+/* Window, menu */
+"Scan" = "Scannen";
+"Scan Page" = "Seite scannen";
+"Scan Stack" = "Stapel scannen";
+"Create PDF" = "PDF erstellen";
+"Find Scanner" = "Scanner suchen";
+"New Document" = "Neues Dokument";
+
+/* Status bar */
+"Scanner" = "Scanner";
+"connected" = "verbunden";
+"%@ connected" = "%@ verbunden";
+"Searching for scanner…" = "Suche Scanner …";
+"No scanner found" = "Kein Scanner gefunden";
+"· Scan area %@" = "· Scanfläche %@";
+"Search Again" = "Erneut suchen";
+
+/* Page list and preview */
+"Page %lld" = "Seite %lld";
+"No pages yet" = "Noch keine Seiten";
+"Load pages into the feeder and press “Scan Stack”" = "Seiten in den Einzug legen und „Stapel scannen“ drücken";
+"Place a page on the glass and press “Scan Page”" = "Seite einlegen und „Seite scannen“ drücken";
+"Preview of the scanned page" = "Vorschau der gescannten Seite";
+
+/* Settings */
+"File name" = "Dateiname";
+"Text layer (OCR)" = "Textebene (OCR)";
+"Embed searchable text" = "Durchsuchbaren Text einbetten";
+"ocrmypdf is not installed" = "ocrmypdf ist nicht installiert";
+"Output folder: %@" = "Zielordner: %@";
+"Choose output folder, currently %@" = "Zielordner wählen, aktuell %@";
+"Resolution" = "Auflösung";
+"%lld dpi" = "%lld dpi";
+"Mode" = "Modus";
+"Paper" = "Format";
+"Scan area, limited to what the scanner can cover" = "Scanbereich, wird auf die Fläche des Scanners begrenzt";
+"Source" = "Quelle";
+"The flatbed scans one page, the feeder every page loaded" = "Flachbett scannt eine Seite, der Einzug alle eingelegten Seiten";
+"Choose" = "Auswählen";
+"Folder for the finished PDFs" = "Ordner für die fertigen PDFs";
+
+/* Paper sizes and modes */
+"Full bed" = "Ganze Fläche";
+"Grayscale" = "Graustufen";
+"Color" = "Farbe";
+"Black & White" = "Schwarz-Weiß";
+"Halftone" = "Halbton";
+
+/* Actions */
+"Scan Page %lld" = "Seite %lld scannen";
+"Remove Page" = "Seite entfernen";
+
+/* Status messages */
+"Scanning stack from the feeder…" = "Scanne Stapel aus dem Einzug …";
+"Scanning page %lld…" = "Scanne Seite %lld …";
+"Page %lld scanned" = "Seite %lld gescannt";
+"%lld pages scanned, %lld in total" = "%lld Seiten gescannt, insgesamt %lld";
+"Creating PDF with %lld page(s)…" = "Erzeuge PDF mit %lld Seite(n) …";
+"Recognizing text…" = "Texterkennung …";
+" (no text layer, OCR failed)" = " (ohne Textebene, OCR fehlgeschlagen)";
+"Saved: %@%@" = "Gespeichert: %@%@";
+
+/* Alerts and dialogs */
+"Error" = "Fehler";
+"OK" = "OK";
+"PDF saved" = "PDF gespeichert";
+"Show in Finder" = "Im Finder zeigen";
+"Replace file?" = "Datei ersetzen?";
+"Replace" = "Ersetzen";
+"Cancel" = "Abbrechen";
+"%@ already exists in %@." = "%@ existiert bereits in %@.";
+"Discard all scanned pages?" = "Alle gescannten Seiten verwerfen?";
+"Discard" = "Verwerfen";
+"The pages have not been saved as a PDF yet." = "Die Seiten wurden noch nicht als PDF gespeichert.";
+
+/* Tool errors */
+"%@ was not found. Install it with: %@" = "%@ wurde nicht gefunden. Installation: %@";
+"%@ failed with status %lld." = "%@ ist fehlgeschlagen (Status %lld).";

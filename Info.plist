@@ -3,19 +3,24 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
-	<string>de</string>
+	<string>en</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>en</string>
+		<string>de</string>
+	</array>
 	<key>CFBundleExecutable</key>
-	<string>PageScan</string>
+	<string>SaneScan</string>
 	<key>CFBundleIconFile</key>
 	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
-	<string>de.webdesign-heim.pagescan</string>
+	<string>de.webdesign-heim.sanescan</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>PageScan</string>
+	<string>SaneScan</string>
 	<key>CFBundleDisplayName</key>
-	<string>PageScan</string>
+	<string>SaneScan</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -29,6 +34,6 @@
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>
-	<string>Christian Heim</string>
+	<string>Christoph Heim</string>
 </dict>
 </plist>
