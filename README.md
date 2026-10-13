@@ -2,8 +2,6 @@
 
 # SaneScan
 
-*Honey, I scanned the docs.*
-
 A small, native macOS app that turns any scanner supported by
 [SANE](http://www.sane-project.org/) into a multi-page PDF scanner with a
 searchable text layer. Built for scanners whose manufacturers stopped shipping
