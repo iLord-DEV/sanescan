@@ -48,6 +48,23 @@ lists it. The [SANE supported devices list](http://www.sane-project.org/sane-sup
 tells you whether yours does. Reports of other models, working or not, are
 welcome as issues.
 
+## Download
+
+Every tagged version has a disk image under
+[Releases](https://github.com/iLord-DEV/sanescan/releases). Open it and drag
+SaneScan into Applications.
+
+The app is only ad-hoc signed, not notarized with Apple. On first launch macOS
+will refuse to open a downloaded copy. Either right-click the app, choose
+"Open" and confirm, or remove the quarantine flag once:
+
+```sh
+xattr -d com.apple.quarantine /Applications/SaneScan.app
+```
+
+The Homebrew tools below are still required; the disk image only saves you the
+build step.
+
 ## Requirements
 
 - macOS 14 or newer.
@@ -78,9 +95,14 @@ There is no Xcode project. The Makefile wraps `swift build`, assembles the
 ```sh
 make run        # build release, assemble build/SaneScan.app, launch it
 make install    # copy the bundle to /Applications
+make dmg        # build/SaneScan.dmg with the app and an Applications link
 make clean
-swift test      # unit tests for the scanimage output parsers
+swift test      # unit tests for the parsers and the localization table
 ```
+
+Pushing a tag like `v1.1` runs the release workflow, which builds the disk
+image on a GitHub macOS runner with that version number and attaches it to a
+GitHub release.
 
 The app is not sandboxed because it needs to launch Homebrew binaries and let
 them talk to USB through libusb.
@@ -139,8 +161,10 @@ open build/SaneScan.app --args -AppleLanguages "(de)"
 
 ### Icon
 
-`Assets/AppIcon.svg` is the source. The Makefile renders it with QuickLook
-(`qlmanage`), scales it with ImageMagick and packs it with `iconutil`.
+`Assets/AppIcon.svg` is the source, `Assets/AppIcon.png` its rendered 1024 px
+version. `make icon-png` re-renders the PNG with QuickLook after editing the
+SVG; the normal build only scales the PNG with `sips` and packs it with
+`iconutil`, so it needs nothing beyond macOS.
 
 ## Limitations
 

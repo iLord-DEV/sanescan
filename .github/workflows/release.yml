@@ -1,0 +1,25 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  dmg:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test
+        run: swift test
+      - name: Build disk image
+        run: make dmg VERSION="${GITHUB_REF_NAME#v}"
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mv build/SaneScan.dmg "build/SaneScan-${GITHUB_REF_NAME#v}.dmg"
+          gh release create "$GITHUB_REF_NAME" "build/SaneScan-${GITHUB_REF_NAME#v}.dmg" \
+            --title "SaneScan ${GITHUB_REF_NAME#v}" --generate-notes

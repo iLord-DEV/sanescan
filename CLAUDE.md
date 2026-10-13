@@ -54,8 +54,16 @@ wird.
   Sprachmodus) plus `Info.plist`; das Makefile baut daraus `build/SaneScan.app`.
 - `make run` baut und startet, `make install` kopiert nach `/Applications`,
   `swift test` führt die Parser-Tests aus (auch in GitHub Actions).
-- Icon: `Assets/AppIcon.svg` → `qlmanage` (QuickLook rendert volles SVG, der
-  ImageMagick-Renderer kann keine Gradienten/Gruppen) → ImageMagick → `iconutil`.
+- Icon: `Assets/AppIcon.svg` ist die Quelle, `Assets/AppIcon.png` (1024 px) das
+  eingecheckte Rendering. `make icon-png` rendert per `qlmanage` neu (QuickLook
+  kann volles SVG, der ImageMagick-Renderer keine Gradienten/Gruppen). Der
+  normale Build skaliert nur mit `sips` + `iconutil`, damit der CI-Runner kein
+  Homebrew braucht. Nach SVG-Änderung PNG neu rendern und mit einchecken.
+- `make dmg` baut `build/SaneScan.dmg`; `VERSION=1.2` setzt die Bundle-Version
+  per PlistBuddy. `.github/workflows/release.yml` macht das bei Tags `v*` und
+  hängt die DMG an ein GitHub-Release. Nur ad-hoc signiert, keine
+  Notarisierung: Nutzer müssen Rechtsklick → Öffnen oder `xattr -d
+  com.apple.quarantine` (steht im README).
 - Lokalisierung: Englische Strings im Code sind die Schlüssel,
   `Resources/de.lproj/Localizable.strings` die deutsche Übersetzung. Kein
   `Bundle.module`, das Makefile kopiert die `.lproj`-Ordner nach
