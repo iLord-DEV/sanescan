@@ -238,6 +238,7 @@ struct ContentView: View {
                 }
             }
             .buttonStyle(.borderedProminent)
+            .keyboardShortcut(.defaultAction)
             .disabled(model.isBusy || model.selectedDevice == nil)
 
             Button("Remove Page") { model.removeSelected() }
