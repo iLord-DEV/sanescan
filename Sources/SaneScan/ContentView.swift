@@ -3,6 +3,7 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject private var model: ScanModel
+    @EnvironmentObject private var updater: AppUpdater
 
     var body: some View {
         VStack(spacing: 0) {
@@ -25,6 +26,11 @@ struct ContentView: View {
                 ScanAreaSheet(bed: bed, initialArea: model.effectiveScanArea ?? bed)
                     .environmentObject(model)
             }
+        }
+        .alert("Update ready", isPresented: $updater.showsPostponedUpdateNotice) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("The update will be installed after the current scan finishes and your pages are saved as a PDF or a new document is started.")
         }
         .alert("Error", isPresented: errorPresented, presenting: model.errorMessage) { _ in
             Button("OK", role: .cancel) {}

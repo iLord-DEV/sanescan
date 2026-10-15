@@ -7,19 +7,42 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: releases
+  cancel-in-progress: false
+
 jobs:
   dmg:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
+      - name: Validate release configuration
+        env:
+          RELEASE_VERSION: ${{ github.ref_name }}
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          python3 scripts/generate-appcast.py --validate-version "${RELEASE_VERSION#v}"
+          if [ -z "$SPARKLE_PRIVATE_KEY" ]; then
+            echo "::error::Configure the SPARKLE_PRIVATE_KEY repository secret before releasing. See docs/updates.md."
+            exit 1
+          fi
       - name: Test
-        run: swift test
+        run: |
+          swift test
+          python3 -m unittest discover -s Tests/ReleaseTests
       - name: Build disk image
         run: make dmg VERSION="${GITHUB_REF_NAME#v}"
+      - name: Sign and verify update feed
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          mkdir -p build/updates
+          cp build/SaneScan.dmg "build/updates/SaneScan-${GITHUB_REF_NAME#v}.dmg"
+          python3 scripts/generate-appcast.py "${GITHUB_REF_NAME#v}"
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          mv build/SaneScan.dmg "build/SaneScan-${GITHUB_REF_NAME#v}.dmg"
-          gh release create "$GITHUB_REF_NAME" "build/SaneScan-${GITHUB_REF_NAME#v}.dmg" \
-            --title "SaneScan ${GITHUB_REF_NAME#v}" --generate-notes
+          gh release create "$GITHUB_REF_NAME" \
+            "build/updates/SaneScan-${GITHUB_REF_NAME#v}.dmg" "build/updates/appcast.xml" \
+            --verify-tag --title "SaneScan ${GITHUB_REF_NAME#v}" --generate-notes --latest

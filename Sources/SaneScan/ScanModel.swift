@@ -33,6 +33,9 @@ final class ScanModel: ObservableObject {
     @Published var documentName = ""
     @Published var customScanArea: ScanArea?
     @Published var selectingScanArea = false
+    @Published private(set) var savedPageIDs: [UUID] = []
+
+    var hasUnsavedPages: Bool { !pages.isEmpty && pages.map(\.id) != savedPageIDs }
 
     @Published private(set) var devices: [ScannerDevice] = []
     @Published private(set) var capabilities: ScannerCapabilities?
@@ -83,10 +86,11 @@ final class ScanModel: ObservableObject {
 
     let ocrAvailable = Tools.isAvailable("ocrmypdf")
 
-    private let defaults = UserDefaults.standard
+    private let defaults: UserDefaults
     private let workDirectory: URL
 
-    init() {
+    init(defaults: UserDefaults = .standard, temporaryDirectory: URL = FileManager.default.temporaryDirectory) {
+        self.defaults = defaults
         let storedDPI = defaults.integer(forKey: "dpi")
         dpi = storedDPI > 0 ? storedDPI : 300
         colorMode = defaults.string(forKey: "colorMode") ?? "Gray"
@@ -104,7 +108,7 @@ final class ScanModel: ObservableObject {
             outputFolder = desktop
         }
 
-        let tmp = FileManager.default.temporaryDirectory
+        let tmp = temporaryDirectory
         Self.removeStaleWorkDirectories(in: tmp)
         workDirectory = tmp.appendingPathComponent("SaneScan-\(UUID().uuidString)", isDirectory: true)
         try? FileManager.default.createDirectory(at: workDirectory, withIntermediateDirectories: true)
@@ -351,6 +355,7 @@ final class ScanModel: ObservableObject {
             try? FileManager.default.removeItem(at: page.url)
         }
         pages = []
+        savedPageIDs = []
         selection = nil
         documentName = ""
         statusText = ""
@@ -411,6 +416,7 @@ final class ScanModel: ObservableObject {
             }
 
             statusText = String(localized: "Saved: \(target.lastPathComponent)\(ocrNote)")
+            savedPageIDs = pages.map(\.id)
             savedPDF = target
         } catch {
             statusText = ""

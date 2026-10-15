@@ -4,6 +4,7 @@ BIN     = .build/release/$(APP)
 APPDIR  = build/$(APP).app
 ICNS    = build/AppIcon.icns
 DMG     = build/$(APP).dmg
+SPARKLE = .build/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework
 # Version written into the bundle, e.g. `make dmg VERSION=1.1`. Defaults to Info.plist.
 VERSION ?=
 
@@ -14,13 +15,16 @@ build:
 
 app: build $(ICNS)
 	rm -rf $(APPDIR)
-	mkdir -p $(APPDIR)/Contents/MacOS $(APPDIR)/Contents/Resources
+	mkdir -p $(APPDIR)/Contents/MacOS $(APPDIR)/Contents/Resources $(APPDIR)/Contents/Frameworks
 	cp $(BIN) $(APPDIR)/Contents/MacOS/$(APP)
 	cp Info.plist $(APPDIR)/Contents/
 	cp $(ICNS) $(APPDIR)/Contents/Resources/AppIcon.icns
 	cp -R Resources/*.lproj $(APPDIR)/Contents/Resources/
+	ditto "$(SPARKLE)" "$(APPDIR)/Contents/Frameworks/Sparkle.framework"
+	cp .build/artifacts/sparkle/Sparkle/LICENSE $(APPDIR)/Contents/Resources/Sparkle-LICENSE.txt
 	if [ -n "$(VERSION)" ]; then \
 	    /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $(VERSION)" $(APPDIR)/Contents/Info.plist; \
+	    /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $(VERSION)" $(APPDIR)/Contents/Info.plist; \
 	fi
 	codesign --force --sign - $(APPDIR)
 	@echo "Fertig: $(APPDIR)"

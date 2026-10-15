@@ -32,6 +32,8 @@ all pages, OCR'd in German and English.
   folder between launches.
 - Fully keyboard operable, labelled for VoiceOver.
 - UI in English and German, following the system language.
+- Integrated updates from GitHub Releases, with automatic checks and signed
+  installation through Sparkle.
 
 ## Tested with
 
@@ -64,6 +66,12 @@ xattr -d com.apple.quarantine /Applications/SaneScan.app
 
 The Homebrew tools below are still required; the disk image only saves you the
 build step.
+
+Once a version with the integrated updater is installed, use **SaneScan → Check
+for Updates…** ("Nach Updates suchen …") to download and install newer releases
+inside the app. Automatic checks can be changed in the same menu. Installation
+waits for active scans and unsaved pages. Older versions require one manual
+upgrade to the first version with Sparkle.
 
 ## Requirements
 
@@ -101,8 +109,9 @@ swift test      # unit tests for the parsers and the localization table
 ```
 
 Pushing a tag like `v1.1` runs the release workflow, which builds the disk
-image on a GitHub macOS runner with that version number and attaches it to a
-GitHub release.
+image on a GitHub macOS runner with that version number and publishes a signed
+update feed alongside it. The workflow requires the `SPARKLE_PRIVATE_KEY`
+repository secret; see [update setup and release instructions](docs/updates.md).
 
 The app is not sandboxed because it needs to launch Homebrew binaries and let
 them talk to USB through libusb.

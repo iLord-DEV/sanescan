@@ -7,6 +7,10 @@
 "Create PDF" = "PDF erstellen";
 "Find Scanner" = "Scanner suchen";
 "New Document" = "Neues Dokument";
+"Check for Updates…" = "Nach Updates suchen …";
+"Automatically Check for Updates" = "Automatisch nach Updates suchen";
+"Update ready" = "Update bereit";
+"The update will be installed after the current scan finishes and your pages are saved as a PDF or a new document is started." = "Das Update wird installiert, sobald der aktuelle Scan beendet ist und deine Seiten als PDF gespeichert wurden oder ein neues Dokument begonnen wurde.";
 
 /* Status bar */
 "Scanner" = "Scanner";
