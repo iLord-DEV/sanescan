@@ -21,6 +21,8 @@ all pages, OCR'd in German and English.
   automatic document feeder (ADF) when the scanner has one.
 - Scan area presets (A4, A5, Letter, Legal, full bed), clamped to what the
   device can actually scan.
+- Full-bed preview with four draggable corners to select a custom rectangular
+  scan area. Corners also support arrow keys and VoiceOver actions.
 - Pages can be reordered by dragging and removed with ⌫ before the PDF is
   written.
 - Produces a JPEG-compressed PDF via ImageMagick and adds a searchable text
@@ -111,6 +113,13 @@ them talk to USB through libusb.
    scan area. With several scanners connected a popup lets you choose.
 2. Put a page on the glass and press ⌘R ("Seite scannen"). With an ADF
    selected as source, ⌘R scans every page in the feeder.
+   To scan a specific area on a flatbed, first click "Select Area…"
+   ("Bereich wählen …"). The app scans a low-resolution preview of the whole
+   glass. Drag its four corner handles, then click "Use Scan Area". The next
+   scans use that position and size at the selected resolution. The preview
+   itself is never added to the PDF. Choose a paper preset to reset the area.
+   Custom areas require reported bed dimensions and last until a different
+   paper preset, scanner or source is selected, or scanners are searched again.
 3. Repeat for every page. Drag pages to reorder, ⌫ removes the selected one.
 4. Pick file name, resolution, mode, paper size, OCR and output folder in the
    settings bar.
@@ -130,6 +139,7 @@ processes off the main thread:
    parsed from that output (`Sources/SaneScan/ScannerDevice.swift`).
 2. `scanimage -d <device> --resolution N --mode M --source S -x W -y H --format=png`
    for each page, or the same with `--batch=` for a feeder. One PNG per page.
+   Custom areas additionally pass `-l X -t Y` for the top-left position.
 3. `magick <pages> -units PixelsPerInch -density N -compress jpeg -quality 85 raw.pdf`
 4. `ocrmypdf -l deu+eng --quiet raw.pdf final.pdf` when OCR is enabled.
 
@@ -168,7 +178,7 @@ SVG; the normal build only scales the PNG with `sips` and packs it with
 
 - One scanner is used at a time; there is no duplex handling beyond what the
   backend's source option offers.
-- The scan area is always anchored at the top-left corner of the glass.
+- Custom scan areas are rectangular; perspective correction is not supported.
 - OCR languages are fixed to German and English.
 - Only tested with the hardware listed above.
 

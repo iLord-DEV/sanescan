@@ -31,6 +31,8 @@ final class ScanModel: ObservableObject {
     @Published var pages: [ScannedPage] = []
     @Published var selection: UUID?
     @Published var documentName = ""
+    @Published var customScanArea: ScanArea?
+    @Published var selectingScanArea = false
 
     @Published private(set) var devices: [ScannerDevice] = []
     @Published private(set) var capabilities: ScannerCapabilities?
@@ -47,7 +49,10 @@ final class ScanModel: ObservableObject {
     @Published var selectedDeviceID: String? {
         didSet {
             defaults.set(deviceSelector, forKey: "deviceSelector")
-            guard selectedDeviceID != oldValue, selectedDeviceID != nil else { return }
+            guard selectedDeviceID != oldValue else { return }
+            customScanArea = nil
+            capabilities = nil
+            guard selectedDeviceID != nil else { return }
             Task { await loadCapabilities() }
         }
     }
@@ -58,10 +63,16 @@ final class ScanModel: ObservableObject {
         didSet { defaults.set(colorMode, forKey: "colorMode") }
     }
     @Published var source: String? {
-        didSet { defaults.set(source, forKey: "source") }
+        didSet {
+            defaults.set(source, forKey: "source")
+            if source != oldValue { customScanArea = nil }
+        }
     }
     @Published var paperSize: PaperSize {
-        didSet { defaults.set(paperSize.rawValue, forKey: "paperSize") }
+        didSet {
+            defaults.set(paperSize.rawValue, forKey: "paperSize")
+            customScanArea = nil
+        }
     }
     @Published var ocrEnabled: Bool {
         didSet { defaults.set(ocrEnabled, forKey: "ocrEnabled") }
@@ -138,10 +149,27 @@ final class ScanModel: ObservableObject {
         return "\(Int(w.rounded())) × \(Int(h.rounded())) mm"
     }
 
+    var fullScanArea: ScanArea? {
+        guard let caps = capabilities, let width = caps.maxWidth, let height = caps.maxHeight,
+              width > 0, height > 0 else { return nil }
+        return ScanArea(width: width, height: height)
+    }
+
+    var canSelectScanArea: Bool {
+        !isBusy && !scannerSearching && selectedDevice != nil && !usesFeeder && fullScanArea != nil
+    }
+
+    var effectiveScanArea: ScanArea? {
+        if !usesFeeder, let customScanArea { return customScanArea }
+        guard let size = paperSize.scanArea(for: capabilities ?? ScannerCapabilities()) else { return nil }
+        return ScanArea(width: size.width, height: size.height)
+    }
+
     /// Lists the connected scanners and selects the stored or first one.
     func detectScanner() async {
-        guard !scannerSearching else { return }
+        guard !scannerSearching, !isBusy, !selectingScanArea else { return }
         scannerSearching = true
+        customScanArea = nil
         defer { scannerSearching = false }
         do {
             let result = try await Tools.run("scanimage", ["-L"])
@@ -195,9 +223,32 @@ final class ScanModel: ObservableObject {
 
     // MARK: - Pages
 
+    /// A low-resolution full-bed scan for area selection; never becomes a document page.
+    func scanAreaPreview() async throws -> NSImage? {
+        guard canSelectScanArea, let selector = deviceSelector, let bed = fullScanArea else { return nil }
+        isBusy = true
+        statusText = String(localized: "Scanning preview…")
+        defer {
+            isBusy = false
+            statusText = ""
+        }
+        let url = workDirectory.appendingPathComponent("preview-\(UUID().uuidString).png")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let resolution = dpiOptions.min { abs($0 - 75) < abs($1 - 75) } ?? 75
+        var arguments = ["-d", selector, "--resolution", "\(resolution)", "--mode", colorMode,
+                         "--format=png"]
+        if let source { arguments += ["--source", source] }
+        arguments += bed.arguments + ["-o", url.path]
+        try await Tools.runChecked("scanimage", arguments)
+        guard let image = await Task.detached(operation: { NSImage(contentsOf: url) }).value else {
+            throw CocoaError(.fileReadCorruptFile)
+        }
+        return image
+    }
+
     /// Scans one page from the flatbed, or every page in the feeder.
     func scanPage() async {
-        guard !isBusy, let selector = deviceSelector else { return }
+        guard !isBusy, !selectingScanArea, let selector = deviceSelector else { return }
         isBusy = true
         defer { isBusy = false }
 
@@ -212,8 +263,13 @@ final class ScanModel: ObservableObject {
             if let source {
                 arguments += ["--source", source]
             }
-            if let area = paperSize.scanArea(for: capabilities ?? ScannerCapabilities()) {
-                arguments += ["-x", Self.millimetres(area.width), "-y", Self.millimetres(area.height)]
+            if let area = effectiveScanArea {
+                // Preserve compatibility with backends without offset options for presets.
+                if customScanArea != nil && !usesFeeder {
+                    arguments += area.arguments
+                } else {
+                    arguments += ["-x", Self.millimetres(area.width), "-y", Self.millimetres(area.height)]
+                }
             }
 
             let scanned: [URL]
@@ -316,7 +372,7 @@ final class ScanModel: ObservableObject {
     }
 
     func createPDF(overwrite: Bool = false) async {
-        guard !pages.isEmpty, !isBusy else { return }
+        guard !pages.isEmpty, !isBusy, !selectingScanArea else { return }
 
         let target = outputFolder.appendingPathComponent(resolvedFileName + ".pdf")
         if !overwrite, FileManager.default.fileExists(atPath: target.path) {

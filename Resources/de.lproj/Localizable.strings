@@ -24,6 +24,26 @@
 "Place a page on the glass and press “Scan Page”" = "Seite einlegen und „Seite scannen“ drücken";
 "Preview of the scanned page" = "Vorschau der gescannten Seite";
 
+/* Scan area selection */
+"Select Scan Area" = "Scanbereich auswählen";
+"Select Area…" = "Bereich wählen …";
+"Custom" = "Benutzerdefiniert";
+"Scan a preview and select an area using four corners" = "Vorschau scannen und den Bereich mit vier Eckpunkten auswählen";
+"Drag the four corners to select the scan area. Use the arrow keys to adjust a focused corner." = "Die vier Eckpunkte ziehen, um den Scanbereich auszuwählen. Ein fokussierter Eckpunkt lässt sich mit den Pfeiltasten verschieben.";
+"Scan area: %@" = "Scanbereich: %@";
+"Scan Preview" = "Vorschau scannen";
+"Scanning preview…" = "Scanne Vorschau …";
+"Use Scan Area" = "Bereich übernehmen";
+"Preview of the scanner glass" = "Vorschau der Scannerfläche";
+"Top left" = "Oben links";
+"Top right" = "Oben rechts";
+"Bottom left" = "Unten links";
+"Bottom right" = "Unten rechts";
+"Move left" = "Nach links verschieben";
+"Move right" = "Nach rechts verschieben";
+"Move up" = "Nach oben verschieben";
+"Move down" = "Nach unten verschieben";
+
 /* Settings */
 "File name" = "Dateiname";
 "Text layer (OCR)" = "Textebene (OCR)";

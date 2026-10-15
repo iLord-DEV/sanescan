@@ -20,6 +20,12 @@ struct ContentView: View {
             actionBar
         }
         .task { await model.detectScanner() }
+        .sheet(isPresented: $model.selectingScanArea) {
+            if let bed = model.fullScanArea {
+                ScanAreaSheet(bed: bed, initialArea: model.effectiveScanArea ?? bed)
+                    .environmentObject(model)
+            }
+        }
         .alert("Error", isPresented: errorPresented, presenting: model.errorMessage) { _ in
             Button("OK", role: .cancel) {}
         } message: { message in
@@ -200,13 +206,20 @@ struct ContentView: View {
                 }
                 .fixedSize()
 
-                Picker("Paper", selection: $model.paperSize) {
+                Picker("Paper", selection: paperSelection) {
+                    if model.customScanArea != nil {
+                        Text("Custom").tag(Optional<PaperSize>.none)
+                    }
                     ForEach(PaperSize.allCases) { size in
-                        Text(size.label).tag(size)
+                        Text(size.label).tag(Optional(size))
                     }
                 }
                 .fixedSize()
                 .help("Scan area, limited to what the scanner can cover")
+
+                Button("Select Area…") { model.selectingScanArea = true }
+                    .disabled(!model.canSelectScanArea)
+                    .help("Scan a preview and select an area using four corners")
 
                 if model.sourceOptions.count > 1 {
                     Picker("Source", selection: $model.source) {
@@ -270,6 +283,13 @@ struct ContentView: View {
     }
 
     // MARK: - Bindings
+
+    private var paperSelection: Binding<PaperSize?> {
+        Binding(
+            get: { model.customScanArea == nil ? model.paperSize : nil },
+            set: { if let size = $0 { model.paperSize = size } }
+        )
+    }
 
     private var errorPresented: Binding<Bool> {
         Binding(
