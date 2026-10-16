@@ -69,8 +69,9 @@ def relocate():
     files = [OUTPUT / "bin/scanimage"]
     files += [p for p in (OUTPUT / "lib").rglob("*") if p.is_file() and not p.is_symlink()]
     for path in files:
-        if subprocess.run(["codesign", "-d", str(path)], capture_output=True).returncode == 0:
-            run(["codesign", "--remove-signature", path])
+        # Keep the linker's signature until relocation finishes. Removing it
+        # first can leave a __LINKEDIT layout rejected by Xcode 16's tools.
+        # install_name_tool invalidates it; codesign --force replaces it below.
         ids = subprocess.check_output(["otool", "-D", str(path)], text=True).splitlines()[1:]
         if ids:
             run(["install_name_tool", "-id", "@rpath/" + path.name, path])

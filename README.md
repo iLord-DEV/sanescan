@@ -66,7 +66,7 @@ will refuse to open a downloaded copy. Either right-click the app, choose
 xattr -d com.apple.quarantine /Applications/SaneScan.app
 ```
 
-Starting with v1.3, the app includes the scanner runtime. Users do not need
+Starting with v1.3.1, the app includes the scanner runtime. Users do not need
 Homebrew, ImageMagick, ocrmypdf or Tesseract. Releases through v1.2 still require
 those external tools.
 
