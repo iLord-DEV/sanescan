@@ -58,7 +58,6 @@
 "OCR is available for PDF only" = "OCR ist nur für PDF verfügbar";
 "Text layer (OCR)" = "Textebene (OCR)";
 "Embed searchable text" = "Durchsuchbaren Text einbetten";
-"ocrmypdf is not installed" = "ocrmypdf ist nicht installiert";
 "Output folder: %@" = "Zielordner: %@";
 "Choose output folder, currently %@" = "Zielordner wählen, aktuell %@";
 "Resolution" = "Auflösung";
@@ -90,7 +89,7 @@
 "Creating %@ with %lld page(s)…" = "Erzeuge %@ mit %lld Seite(n) …";
 "%lld files saved" = "%lld Dateien gespeichert";
 "Recognizing text…" = "Texterkennung …";
-" (no text layer, OCR failed)" = " (ohne Textebene, OCR fehlgeschlagen)";
+" (OCR incomplete)" = " (Texterkennung unvollständig)";
 "Saved: %@%@" = "Gespeichert: %@%@";
 
 /* Alerts and dialogs */
@@ -110,5 +109,5 @@
 "The export could not be restored completely. Your original files are kept in %@." = "Der Export konnte nicht vollständig zurückgesetzt werden. Die ursprünglichen Dateien sind unter %@ gesichert.";
 
 /* Tool errors */
-"%@ was not found. Install it with: %@" = "%@ wurde nicht gefunden. Installation: %@";
+"%@ is missing from the app. Reinstall SaneScan." = "%@ fehlt in der App. Bitte SaneScan neu installieren.";
 "%@ failed with status %lld." = "%@ ist fehlgeschlagen (Status %lld).";

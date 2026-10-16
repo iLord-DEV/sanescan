@@ -1,0 +1,10 @@
+{
+  "deployment_target": "14.0",
+  "packages": [
+    {"name": "libusb", "version": "1.0.30", "url": "https://github.com/libusb/libusb/releases/download/v1.0.30/libusb-1.0.30.tar.bz2", "sha256": "fea36f34f9156400209595e300840767ab1a385ede1dc7ee893015aea9c6dbaf"},
+    {"name": "libpng", "version": "1.6.59", "url": "https://downloads.sourceforge.net/project/libpng/libpng16/1.6.59/libpng-1.6.59.tar.xz", "sha256": "d80dd2a38a37f803cb9b6ac7b14bd6e74ddc3b654780a8380bdf93523fdb4389"},
+    {"name": "jpeg-turbo", "version": "3.2.0", "url": "https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/3.2.0/libjpeg-turbo-3.2.0.tar.gz", "sha256": "6f30092cef9fb839779646608f4ee14ae3cbac989c47fa05e841b0841f09878e"},
+    {"name": "libtiff", "version": "4.7.2", "url": "https://download.osgeo.org/libtiff/tiff-4.7.2.tar.gz", "sha256": "672bd7d10aee4606171afb864f3570b83340f6a33e2c186dc0512f7145ffdf6a"},
+    {"name": "sane-backends", "version": "1.4.0", "url": "https://gitlab.com/-/project/429008/uploads/843c156420e211859e974f78f64c3ea3/sane-backends-1.4.0.tar.gz", "sha256": "f99205c903dfe2fb8990f0c531232c9a00ec9c2c66ac7cb0ce50b4af9f407a72"}
+  ]
+}

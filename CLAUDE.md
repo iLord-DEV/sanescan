@@ -2,13 +2,13 @@
 
 SwiftUI-App (macOS 14+) für mehrseitige PDF-Scans mit jedem Scanner, den SANE
 unterstützt. Entstanden für den Canon CanoScan LiDE 210, für den Canon keinen
-Treiber für aktuelles macOS mehr liefert. Alles läuft über Homebrew-Tools, die
-die App per `Process` aufruft.
+Treiber für aktuelles macOS mehr liefert. Die App enthält eine private
+SANE-Laufzeit; PDF-Erstellung und OCR nutzen native macOS-Frameworks.
 
 ## Architektur
 
 - `Sources/SaneScan/SaneScanApp.swift` – App-Einstieg, Menü „Scannen“ mit den
-  Tastenkürzeln (⌘R Seite/Stapel scannen, ⌘S PDF erstellen, ⌘N neues
+  Tastenkürzeln (⌘R Seite/Stapel scannen, ⌘S Erstellen, ⌘N neues
   Dokument). Kürzel nur hier definieren, nicht zusätzlich an den Buttons.
 - `Sources/SaneScan/ScanModel.swift` – `@MainActor ObservableObject`: Seiten,
   Einstellungen (UserDefaults), Geräteliste, Fähigkeiten, Scan und
@@ -20,8 +20,15 @@ die App per `Process` aufruft.
 - `Sources/SaneScan/ContentView.swift` – gesamte UI: Statusleiste mit
   Geräteauswahl, Seitenliste, Vorschau, Einstellungsleiste, Aktionsleiste,
   Alerts/Dialoge.
-- `Sources/SaneScan/Tools.swift` – findet Binaries in `/opt/homebrew/bin` usw.
-  und führt sie asynchron aus (stdout/stderr getrennt, PATH erweitert).
+- `Sources/SaneScan/Tools.swift` – `ScannerRuntime` findet ausschließlich das
+  eingebettete `scanimage` und setzt private Backend-/Konfigurationspfade.
+  `Tools.run` führt es asynchron aus (stdout/stderr getrennt).
+- `Sources/SaneScan/PDFExporter.swift` – CoreGraphics/ImageIO für PDF-Seiten,
+  Vision für OCR, CoreText für die unsichtbare durchsuchbare Textebene.
+- `scripts/build-scanner-runtime.py` – baut gepinnte SANE-Quellen und native
+  Abhängigkeiten für macOS 14, relativiert Bibliothekspfade und signiert sie.
+  `scripts/verify-scanner-runtime.py` prüft einen virtuellen Scan mit gesperrten
+  Homebrew- und Buildpfaden. Details: `docs/scanner-runtime.md`.
 
 ## Pipeline
 
@@ -31,11 +38,12 @@ die App per `Process` aufruft.
    --format=png` → PNG je Seite im Arbeitsordner (`SaneScan-<UUID>`). Mit
    Einzug stattdessen `--batch=<dir>/page-%04d.png`; erfolgreich, sobald
    Dateien entstanden sind (Exit-Status am Ende des Stapels ist backendabhängig).
-3. `magick <pngs> -units PixelsPerInch -density DPI -compress jpeg -quality 85 raw.pdf`
-4. Optional `ocrmypdf -l deu+eng --quiet raw.pdf ziel.pdf`; schlägt OCR fehl,
-   wird raw.pdf ohne Textebene gespeichert (kein Abbruch).
-
-Das Shell-Pendant liegt in `~/.local/bin/scan` (gleiche Pipeline, interaktiv).
+3. PDFExporter erzeugt JPEG-komprimierte PDF-Seiten mit physischer Seitengröße
+   gemäß DPI. Optional erkennt Vision Deutsch/Englisch und CoreText ergänzt
+   eine unsichtbare Textebene. OCR-Fehler erhalten alle Bilder und werden im
+   Status gemeldet. PNG/JPEG/TIFF nutzen ImageIO.
+4. Exportdateien werden vorab in einem temporären Zielordner erstellt und erst
+   danach eingesetzt; Fehler beim Ersetzen stellen die Originale wieder her.
 
 ## Geräteauswahl (wichtig)
 
@@ -53,12 +61,15 @@ wird.
 - Kein Xcode-Projekt. `swift build` (Package.swift, tools-version 5.10, Swift-5-
   Sprachmodus) plus `Info.plist`; das Makefile baut daraus `build/SaneScan.app`.
 - `make run` baut und startet, `make install` kopiert nach `/Applications`,
-  `swift test` führt die Parser-Tests aus (auch in GitHub Actions).
+  `swift test` prüft Parser, Exporte, Vision-OCR, Laufzeitpfade und Updates.
+- Entwickler brauchen Python 3, CMake und pkg-config zusätzlich zu Swift.
+  `make scanner-runtime` baut die private Laufzeit; `make verify-runtime` prüft
+  deren Verschiebbarkeit. Nutzer brauchen kein Homebrew oder externe Tools.
 - Icon: `Assets/AppIcon.svg` ist die Quelle, `Assets/AppIcon.png` (1024 px) das
   eingecheckte Rendering. `make icon-png` rendert per `qlmanage` neu (QuickLook
   kann volles SVG, der ImageMagick-Renderer keine Gradienten/Gruppen). Der
-  normale Build skaliert nur mit `sips` + `iconutil`, damit der CI-Runner kein
-  Homebrew braucht. Nach SVG-Änderung PNG neu rendern und mit einchecken.
+  normale Icon-Build skaliert nur mit `sips` + `iconutil`. Nach SVG-Änderung
+  PNG neu rendern und mit einchecken.
 - `make dmg` baut `build/SaneScan.dmg`; `VERSION=1.2` setzt die Bundle-Version
   per PlistBuddy. `.github/workflows/release.yml` macht das bei Tags `v*` und
   hängt die DMG an ein GitHub-Release. Nur ad-hoc signiert, keine
@@ -75,7 +86,9 @@ wird.
 
 ## Abhängigkeiten
 
-`brew install sane-backends imagemagick ocrmypdf tesseract-lang`
+Nur auf dem Build-Rechner optional über Homebrew: `brew install cmake pkgconf`.
+Scanner-Laufzeit einschließlich Lizenzen und passender Quellen ist eingebettet.
+PDF/OCR benötigen keine externen Programme.
 
 ## Regeln
 

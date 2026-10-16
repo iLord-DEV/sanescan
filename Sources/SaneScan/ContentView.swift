@@ -196,7 +196,7 @@ struct ContentView: View {
                 .help(model.exportFormat.explanation)
 
                 Toggle("Text layer (OCR)", isOn: $model.ocrEnabled)
-                    .disabled(model.exportFormat != .pdf || !model.ocrAvailable)
+                    .disabled(model.exportFormat != .pdf)
                     .help(ocrHelp)
 
                 Spacer()
@@ -309,8 +309,7 @@ struct ContentView: View {
 
     private var ocrHelp: String {
         if model.exportFormat != .pdf { return String(localized: "OCR is available for PDF only") }
-        return model.ocrAvailable ? String(localized: "Embed searchable text")
-            : String(localized: "ocrmypdf is not installed")
+        return String(localized: "Embed searchable text")
     }
 
     private var paperSelection: Binding<PaperSize?> {

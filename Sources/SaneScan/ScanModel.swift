@@ -87,8 +87,6 @@ final class ScanModel: ObservableObject {
         didSet { defaults.set(outputFolder.path, forKey: "outputFolder") }
     }
 
-    let ocrAvailable = Tools.isAvailable("ocrmypdf")
-
     private let defaults: UserDefaults
     private let workDirectory: URL
     private var pendingExport: ExportRequest?
@@ -391,7 +389,7 @@ final class ScanModel: ObservableObject {
         let request = ExportRequest(
             pages: pages, format: exportFormat,
             targets: exportFormat.targets(in: outputFolder, baseName: resolvedFileName, pageCount: pages.count),
-            dpi: dpi, useOCR: exportFormat == .pdf && ocrEnabled && ocrAvailable
+            dpi: dpi, useOCR: exportFormat == .pdf && ocrEnabled
         )
         do {
             let existing = try ExportTransaction.existingTargets(request.targets)
@@ -457,22 +455,15 @@ final class ScanModel: ObservableObject {
     }
 
     private func writePDF(_ request: ExportRequest, into transaction: ExportTransaction) async throws -> String {
-        let raw = transaction.directory.appendingPathComponent("raw.pdf")
         let target = transaction.stagedFiles[0]
-        var arguments = request.pages.map(\.url.path)
-        arguments += ["-units", "PixelsPerInch", "-density", "\(request.dpi)",
-                      "-compress", "jpeg", "-quality", "85", raw.path]
-        try await Tools.runChecked("magick", arguments)
-        if request.useOCR {
-            statusText = String(localized: "Recognizing text…")
-            let result = try await Tools.run("ocrmypdf", ["-l", "deu+eng", "--quiet", raw.path, target.path])
-            if result.succeeded { return "" }
-            try? FileManager.default.removeItem(at: target)
-            try FileManager.default.copyItem(at: raw, to: target)
-            return String(localized: " (no text layer, OCR failed)")
-        }
-        try FileManager.default.copyItem(at: raw, to: target)
-        return ""
+        let urls = request.pages.map(\.url)
+        let resolution = request.dpi
+        let useOCR = request.useOCR
+        if useOCR { statusText = String(localized: "Recognizing text…") }
+        let incomplete = try await Task.detached {
+            try PDFExporter.write(pages: urls, dpi: resolution, performOCR: useOCR, destination: target)
+        }.value
+        return incomplete ? String(localized: " (OCR incomplete)") : ""
     }
 
     // MARK: - Helpers

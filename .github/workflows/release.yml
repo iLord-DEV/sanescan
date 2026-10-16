@@ -26,6 +26,18 @@ jobs:
             echo "::error::Configure the SPARKLE_PRIVATE_KEY repository secret before releasing. See docs/updates.md."
             exit 1
           fi
+      - name: Install build tools
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: 1
+        run: brew install cmake pkgconf
+      - uses: actions/cache@v4
+        with:
+          path: |
+            build/native
+            build/runtime-downloads
+          key: ${{ runner.os }}-${{ runner.arch }}-scanner-${{ hashFiles('scripts/scanner-runtime.lock.json', 'scripts/build-scanner-runtime.py') }}
+      - name: Build and verify portable scanner
+        run: make verify-runtime
       - name: Test
         run: |
           swift test

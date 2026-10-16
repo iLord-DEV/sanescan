@@ -90,7 +90,7 @@ final class ExportTests: XCTestCase {
         }
     }
 
-    func testMonochromeScansCanBeExportedToEveryImageFormat() throws {
+    func testMonochromeScansCanBeExportedToEveryFormat() throws {
         let folder = try directory()
         let provider = try XCTUnwrap(CGDataProvider(data: Data(repeating: 0xAA, count: 8) as CFData))
         let image = try XCTUnwrap(CGImage(width: 8, height: 8, bitsPerComponent: 1, bitsPerPixel: 1,
@@ -107,11 +107,13 @@ final class ExportTests: XCTestCase {
             let source = try XCTUnwrap(CGImageSourceCreateWithURL(targets[0] as CFURL, nil))
             XCTAssertNotNil(CGImageSourceCreateImageAtIndex(source, 0, nil))
         }
+        let pdf = folder.appendingPathComponent("lineart.pdf")
+        XCTAssertFalse(try PDFExporter.write(pages: [input], dpi: 300, performOCR: false, destination: pdf))
+        XCTAssertEqual(try XCTUnwrap(PDFDocument(url: pdf)).pageCount, 1)
     }
 
     @MainActor
     func testPDFExportKeepsAllPages() async throws {
-        guard Tools.isAvailable("magick") else { throw XCTSkip("PDF integration requires ImageMagick") }
         let folder = try directory()
         let model = try model(in: folder)
         model.exportFormat = .pdf

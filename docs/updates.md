@@ -19,6 +19,13 @@ adds the runtime framework search path. The existing ad-hoc app signing remains
 in use; Apple Developer ID signing and notarization are separate from Sparkle's
 Ed25519 update signatures.
 
+Each app and update also contains the private scanner runtime, its licenses and
+complete matching source archives. The release workflow builds it from pinned
+upstream sources and verifies library paths, deployment targets, signatures and
+a relocated virtual scan before packaging. PDF creation and OCR use macOS
+frameworks and need no separately installed software. See
+[scanner runtime details](scanner-runtime.md).
+
 When `VERSION` is supplied, the Makefile sets **both** `CFBundleVersion` and
 `CFBundleShortVersionString`. Use increasing stable numeric versions such as
 `1.1`, `1.2` or `1.2.1`. The release workflow rejects prerelease tags; those must
@@ -55,7 +62,8 @@ able to update apps already distributed with the current public key.
 Pushing a stable tag such as `v1.2` runs `.github/workflows/release.yml`. It:
 
 1. Validates the version and requires the signing secret.
-2. Runs the app and release tooling tests, then builds the DMG.
+2. Builds and verifies the bundled scanner runtime, runs the app and release
+   tooling tests, then builds the DMG.
 3. Generates an appcast with Sparkle, signing the DMG with the Actions secret
    passed over stdin. No private key is written into the repository or logs.
 4. Verifies the feed's version, download URL and file size, then independently

@@ -16,8 +16,7 @@ enum ToolError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .missing(let tool):
-            let hint = Tools.installHints[tool] ?? "brew install \(tool)"
-            return String(localized: "\(tool) was not found. Install it with: \(hint)")
+            return String(localized: "\(tool) is missing from the app. Reinstall SaneScan.")
         case .failed(let tool, let status, let stderr):
             let detail = stderr.trimmingCharacters(in: .whitespacesAndNewlines)
             let message = String(localized: "\(tool) failed with status \(Int(status)).")
@@ -26,35 +25,57 @@ enum ToolError: LocalizedError {
     }
 }
 
-/// Locates and runs the Homebrew command line tools the app depends on.
-enum Tools {
-    static let searchPaths = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"]
+/// The scanner process and its private configuration and library directories.
+struct ScannerRuntime {
+    let root: URL
+    var userConfiguration: URL?
 
-    static let installHints: [String: String] = [
-        "scanimage": "brew install sane-backends",
-        "magick": "brew install imagemagick",
-        "ocrmypdf": "brew install ocrmypdf tesseract-lang",
-    ]
-
-    static func locate(_ name: String) -> URL? {
-        for dir in searchPaths {
-            let path = (dir as NSString).appendingPathComponent(name)
-            if FileManager.default.isExecutableFile(atPath: path) {
-                return URL(fileURLWithPath: path)
-            }
+    static var current: ScannerRuntime {
+        let root: URL
+        if Bundle.main.bundleURL.pathExtension == "app", let resources = Bundle.main.resourceURL {
+            root = resources.appendingPathComponent("ScannerRuntime", isDirectory: true)
+        } else {
+            // SwiftPM development runs use the same portable runtime as app builds.
+            root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+                .appendingPathComponent("build/scanner-runtime", isDirectory: true)
         }
-        return nil
+        let configuration = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
+            .first?.appendingPathComponent("SaneScan/sane.d", isDirectory: true)
+        return ScannerRuntime(root: root, userConfiguration: configuration)
     }
 
-    static func isAvailable(_ name: String) -> Bool {
-        locate(name) != nil
+    func executable(_ name: String) -> URL? {
+        guard name == "scanimage" else { return nil }
+        let url = root.appendingPathComponent("bin/scanimage")
+        return FileManager.default.isExecutableFile(atPath: url.path) ? url : nil
+    }
+
+    func environment(base: [String: String]) -> [String: String] {
+        var environment = base.filter { !$0.key.hasPrefix("DYLD_") && $0.key != "LD_PRELOAD" }
+        environment["PATH"] = [root.appendingPathComponent("bin").path, "/usr/bin", "/bin"].joined(separator: ":")
+        environment["LD_LIBRARY_PATH"] = root.appendingPathComponent("lib/sane").path
+        var directories = [root.appendingPathComponent("etc/sane.d").path]
+        if let userConfiguration, FileManager.default.fileExists(atPath: userConfiguration.path) {
+            directories.insert(userConfiguration.path, at: 0)
+        }
+        // No trailing colon: that would re-enable SANE's compiled-in defaults.
+        environment["SANE_CONFIG_DIR"] = directories.joined(separator: ":")
+        return environment
+    }
+}
+
+/// Runs only the scanner bundled with the app; never falls back to Homebrew.
+enum Tools {
+    static func locate(_ name: String, runtime: ScannerRuntime = .current) -> URL? {
+        runtime.executable(name)
     }
 
     /// Runs a tool off the main thread and returns its output.
-    static func run(_ name: String, _ arguments: [String]) async throws -> CommandResult {
-        guard let executable = locate(name) else { throw ToolError.missing(name) }
+    static func run(_ name: String, _ arguments: [String], runtime: ScannerRuntime = .current) async throws -> CommandResult {
+        guard let executable = locate(name, runtime: runtime) else { throw ToolError.missing(name) }
+        let environment = runtime.environment(base: ProcessInfo.processInfo.environment)
         return try await Task.detached(priority: .userInitiated) {
-            try runSync(executable: executable, arguments: arguments)
+            try runSync(executable: executable, arguments: arguments, environment: environment)
         }.value
     }
 
@@ -68,15 +89,11 @@ enum Tools {
         return result
     }
 
-    private static func runSync(executable: URL, arguments: [String]) throws -> CommandResult {
+    private static func runSync(executable: URL, arguments: [String], environment: [String: String]) throws -> CommandResult {
         let process = Process()
         process.executableURL = executable
         process.arguments = arguments
 
-        // The app bundle starts with a minimal PATH; ocrmypdf needs tesseract and gs on it.
-        var environment = ProcessInfo.processInfo.environment
-        let existing = environment["PATH"].map { [$0] } ?? []
-        environment["PATH"] = (searchPaths + existing).joined(separator: ":")
         process.environment = environment
 
         let stdoutPipe = Pipe()

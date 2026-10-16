@@ -8,18 +8,25 @@ SPARKLE = .build/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_6
 # Version written into the bundle, e.g. `make dmg VERSION=1.1`. Defaults to Info.plist.
 VERSION ?=
 
-.PHONY: build app run install clean icon icon-png dmg
+.PHONY: build scanner-runtime verify-runtime app run install clean icon icon-png dmg
 
 build:
 	swift build -c release
 
-app: build $(ICNS)
+scanner-runtime:
+	python3 scripts/build-scanner-runtime.py
+
+verify-runtime: scanner-runtime
+	python3 scripts/verify-scanner-runtime.py build/scanner-runtime
+
+app: build scanner-runtime $(ICNS)
 	rm -rf $(APPDIR)
 	mkdir -p $(APPDIR)/Contents/MacOS $(APPDIR)/Contents/Resources $(APPDIR)/Contents/Frameworks
 	cp $(BIN) $(APPDIR)/Contents/MacOS/$(APP)
 	cp Info.plist $(APPDIR)/Contents/
 	cp $(ICNS) $(APPDIR)/Contents/Resources/AppIcon.icns
 	cp -R Resources/*.lproj $(APPDIR)/Contents/Resources/
+	ditto build/scanner-runtime "$(APPDIR)/Contents/Resources/ScannerRuntime"
 	ditto "$(SPARKLE)" "$(APPDIR)/Contents/Frameworks/Sparkle.framework"
 	cp .build/artifacts/sparkle/Sparkle/LICENSE $(APPDIR)/Contents/Resources/Sparkle-LICENSE.txt
 	if [ -n "$(VERSION)" ]; then \
@@ -27,6 +34,7 @@ app: build $(ICNS)
 	    /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $(VERSION)" $(APPDIR)/Contents/Info.plist; \
 	fi
 	codesign --force --sign - $(APPDIR)
+	python3 scripts/verify-scanner-runtime.py "$(APPDIR)/Contents/Resources/ScannerRuntime"
 	@echo "Fertig: $(APPDIR)"
 
 run: app

@@ -10,6 +10,18 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
+      - name: Install build tools
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: 1
+        run: brew install cmake pkgconf
+      - uses: actions/cache@v4
+        with:
+          path: |
+            build/native
+            build/runtime-downloads
+          key: ${{ runner.os }}-${{ runner.arch }}-scanner-${{ hashFiles('scripts/scanner-runtime.lock.json', 'scripts/build-scanner-runtime.py') }}
+      - name: Build and verify portable scanner
+        run: make verify-runtime
       - name: Build
         run: swift build
       - name: Test

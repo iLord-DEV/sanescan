@@ -25,9 +25,10 @@ all pages, OCR'd in German and English.
   scan area. Corners also support arrow keys and VoiceOver actions.
 - Pages can be reordered by dragging and removed with ⌫ before the PDF is
   written.
-- Produces a JPEG-compressed PDF via ImageMagick and adds a searchable text
-  layer with ocrmypdf (Tesseract). If OCR fails the PDF is saved without it
-  rather than aborting.
+- Produces a JPEG-compressed PDF with CoreGraphics and adds an invisible,
+  searchable text layer using Apple's on-device Vision framework. German and
+  English recognition work without additional tools or language downloads.
+  If recognition fails, the images are still saved and the status reports it.
 - Choose PDF, PNG, JPEG or TIFF before pressing **Create**. PDF and lossless
   TIFF collect all pages in one file; PNG and JPEG export one image per page
   with numbered names for multi-page scans. OCR is available for PDF only.
@@ -45,11 +46,9 @@ all pages, OCR'd in German and English.
 | Scanner | Canon CanoScan LiDE 210 (USB, SANE `genesys` backend) |
 | macOS | 27.0.1 on Apple Silicon |
 | sane-backends | 1.4.0 |
-| ImageMagick | 7.1.2 |
-| ocrmypdf / Tesseract | 17.13 / 5.5 |
 
-Any other scanner with a SANE backend should work as long as `scanimage -L`
-lists it. The [SANE supported devices list](http://www.sane-project.org/sane-supported-devices.html)
+Scanner support depends on the bundled SANE backends. The
+[SANE supported devices list](http://www.sane-project.org/sane-supported-devices.html)
 tells you whether yours does. Reports of other models, working or not, are
 welcome as issues.
 
@@ -67,8 +66,9 @@ will refuse to open a downloaded copy. Either right-click the app, choose
 xattr -d com.apple.quarantine /Applications/SaneScan.app
 ```
 
-The Homebrew tools below are still required; the disk image only saves you the
-build step.
+Starting with v1.3, the app includes the scanner runtime. Users do not need
+Homebrew, ImageMagick, ocrmypdf or Tesseract. Releases through v1.2 still require
+those external tools.
 
 Once a version with the integrated updater is installed, use **SaneScan → Check
 for Updates…** ("Nach Updates suchen …") to download and install newer releases
@@ -79,36 +79,28 @@ upgrade to the first version with Sparkle.
 ## Requirements
 
 - macOS 14 or newer.
-- [Homebrew](https://brew.sh) with the command line tools the app drives:
-
-```sh
-brew install sane-backends imagemagick ocrmypdf tesseract-lang
-```
-
-`tesseract-lang` provides the German language data for OCR. ocrmypdf is
-optional: without it the OCR toggle is disabled and plain image PDFs are
-written.
-
-- Xcode or the Swift toolchain (Swift 5.10 or newer) to build.
-
-Check that SANE sees your scanner before blaming the app:
-
-```sh
-scanimage -L
-# device `genesys:libusb:002:001' is a Canon LiDE 210 flatbed scanner
-```
+- A scanner supported by the bundled SANE backends. Some models require
+  separately obtained firmware; see [scanner runtime details](docs/scanner-runtime.md).
+- Downloaded release builds target Apple Silicon. Source builds use the host
+  architecture, including Intel.
 
 ## Build and run
 
 There is no Xcode project. The Makefile wraps `swift build`, assembles the
-`.app` bundle from `Info.plist` and a generated icon, and ad-hoc signs it.
+`.app` bundle from `Info.plist` and a generated icon, builds and embeds a private
+SANE runtime, and ad-hoc signs it. Developers need Xcode or the Swift toolchain
+(Swift 5.10 or newer), Python 3, CMake and pkg-config. For example, install the
+last two build tools with `brew install cmake pkgconf`. Homebrew is only a
+convenience for the build machine. The first build downloads checksum-pinned
+sources and takes several minutes; subsequent builds reuse the native build cache.
 
 ```sh
 make run        # build release, assemble build/SaneScan.app, launch it
 make install    # copy the bundle to /Applications
 make dmg        # build/SaneScan.dmg with the app and an Applications link
 make clean
-swift test      # unit tests for the parsers and the localization table
+swift test      # app tests, including native PDF export and Vision OCR
+make verify-runtime # relocated virtual scan, with Homebrew paths denied
 ```
 
 Pushing a tag like `v1.1` runs the release workflow, which builds the disk
@@ -116,8 +108,8 @@ image on a GitHub macOS runner with that version number and publishes a signed
 update feed alongside it. The workflow requires the `SPARKLE_PRIVATE_KEY`
 repository secret; see [update setup and release instructions](docs/updates.md).
 
-The app is not sandboxed because it needs to launch Homebrew binaries and let
-them talk to USB through libusb.
+The app is not sandboxed because its private scanner process needs direct USB
+access through libusb. See [runtime build, licenses and verification](docs/scanner-runtime.md).
 
 ## Usage
 
@@ -146,8 +138,8 @@ document is started or the app exits.
 
 ## How it works
 
-Everything runs through three command line tools, launched as child
-processes off the main thread:
+Scanning uses the private `ScannerRuntime/bin/scanimage` executable, launched
+off the main thread with bundled backends, libraries and default configuration:
 
 1. `scanimage -L` to list devices, `scanimage -d <device> -A` to read the
    device's option list. The modes, resolutions and `-x`/`-y` limits are
@@ -155,11 +147,9 @@ processes off the main thread:
 2. `scanimage -d <device> --resolution N --mode M --source S -x W -y H --format=png`
    for each page, or the same with `--batch=` for a feeder. One PNG per page.
    Custom areas additionally pass `-l X -t Y` for the top-left position.
-3. `magick <pages> -units PixelsPerInch -density N -compress jpeg -quality 85 raw.pdf`
-4. `ocrmypdf -l deu+eng --quiet raw.pdf final.pdf` when OCR is enabled.
-
-PNG, JPEG and TIFF exports use macOS ImageIO off the main thread, without
-ImageMagick or OCR. All output files are prepared in a temporary directory
+PDF export uses CoreGraphics, CoreText and ImageIO; optional text recognition
+uses Vision. PNG, JPEG and TIFF exports also use ImageIO. All export work runs
+off the main thread. Output files are prepared in a temporary directory
 inside the output folder before installation. Replacement failures restore
 the original files; scanned source images are kept for retrying.
 
@@ -201,7 +191,14 @@ SVG; the normal build only scales the PNG with `sips` and packs it with
 - Custom scan areas are rectangular; perspective correction is not supported.
 - OCR languages are fixed to German and English.
 - Only tested with the hardware listed above.
+- The standalone runtime has been checked with a virtual scanner while
+  Homebrew and build directories were inaccessible. Testing on a fresh macOS 14
+  installation and with physical scanners using this runtime is still pending.
 
 ## License
 
-[MIT](LICENSE)
+The app source is [MIT](LICENSE). Bundled scanner components have their own
+licenses, including the GPL for SANE's command line frontend and libtiff's,
+libpng's, libusb's and libjpeg-turbo's licenses. License notices and complete
+matching source archives with rebuild instructions are included inside the
+app at `Contents/Resources/ScannerRuntime/share/`.
