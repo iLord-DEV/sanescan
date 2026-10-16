@@ -30,33 +30,37 @@ struct ContentView: View {
         .alert("Update ready", isPresented: $updater.showsPostponedUpdateNotice) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text("The update will be installed after the current scan finishes and your pages are saved as a PDF or a new document is started.")
+            Text("The update will be installed after the current scan finishes and your pages are exported or a new document is started.")
         }
         .alert("Error", isPresented: errorPresented, presenting: model.errorMessage) { _ in
             Button("OK", role: .cancel) {}
         } message: { message in
             Text(message)
         }
-        .alert("PDF saved", isPresented: savedPresented, presenting: model.savedPDF) { url in
+        .alert("Export complete", isPresented: savedPresented, presenting: model.savedFiles) { files in
             Button("Show in Finder") {
-                NSWorkspace.shared.activateFileViewerSelecting([url])
+                NSWorkspace.shared.activateFileViewerSelecting(files)
             }
             Button("New Document") { model.newDocument() }
             Button("OK", role: .cancel) {}
-        } message: { url in
-            Text(url.path)
+        } message: { files in
+            if files.count == 1, let file = files.first {
+                Text(file.path)
+            } else if let first = files.first {
+                Text("\(files.count) files saved in \(first.deletingLastPathComponent().path)")
+            }
         }
         .confirmationDialog(
-            "Replace file?",
+            "Replace files?",
             isPresented: overwritePresented,
-            presenting: model.overwriteCandidate
-        ) { url in
-            Button("Replace", role: .destructive) {
-                Task { await model.createPDF(overwrite: true) }
-            }
+            presenting: model.overwriteCandidates
+        ) { _ in
+            Button("Replace", role: .destructive, action: model.confirmExportOverwriteAction)
             Button("Cancel", role: .cancel) {}
-        } message: { url in
-            Text("\(url.lastPathComponent) already exists in \(url.deletingLastPathComponent().lastPathComponent).")
+        } message: { files in
+            if let first = files.first {
+                Text("Replace \(files.count) existing file(s) in \(first.deletingLastPathComponent().path)?")
+            }
         }
         .confirmationDialog(
             "Discard all scanned pages?",
@@ -65,7 +69,7 @@ struct ContentView: View {
             Button("Discard", role: .destructive) { model.newDocument() }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("The pages have not been saved as a PDF yet.")
+            Text("This removes all scanned pages from the document.")
         }
     }
 
@@ -146,6 +150,7 @@ struct ContentView: View {
             }
         }
         .onDeleteCommand { model.removeSelected() }
+        .disabled(model.isBusy)
         .overlay {
             if model.pages.isEmpty {
                 Text("No pages yet")
@@ -180,11 +185,19 @@ struct ContentView: View {
             HStack(spacing: 16) {
                 TextField("File name", text: $model.documentName, prompt: Text(model.resolvedFileName))
                     .textFieldStyle(.roundedBorder)
-                    .frame(maxWidth: 320)
+                    .frame(minWidth: 120, maxWidth: 240)
+
+                Picker("File format", selection: $model.exportFormat) {
+                    ForEach(ExportFormat.allCases) { format in
+                        Text(format.label).tag(format)
+                    }
+                }
+                .fixedSize()
+                .help(model.exportFormat.explanation)
 
                 Toggle("Text layer (OCR)", isOn: $model.ocrEnabled)
-                    .disabled(!model.ocrAvailable)
-                    .help(model.ocrAvailable ? "Embed searchable text" : "ocrmypdf is not installed")
+                    .disabled(model.exportFormat != .pdf || !model.ocrAvailable)
+                    .help(ocrHelp)
 
                 Spacer()
 
@@ -196,6 +209,10 @@ struct ContentView: View {
                 .help("Output folder: \(model.outputFolder.path)")
                 .accessibilityLabel(Text("Choose output folder, currently \(model.outputFolder.lastPathComponent)"))
             }
+
+            Text(model.exportFormat.explanation)
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
             HStack(spacing: 16) {
                 Picker("Resolution", selection: $model.dpi) {
@@ -278,9 +295,9 @@ struct ContentView: View {
                 .truncationMode(.middle)
 
             Button {
-                Task { await model.createPDF() }
+                Task { await model.createOutput() }
             } label: {
-                Label("Create PDF", systemImage: "doc.richtext")
+                Label("Create", systemImage: "square.and.arrow.down")
             }
             .disabled(model.pages.isEmpty || model.isBusy)
         }
@@ -289,6 +306,12 @@ struct ContentView: View {
     }
 
     // MARK: - Bindings
+
+    private var ocrHelp: String {
+        if model.exportFormat != .pdf { return String(localized: "OCR is available for PDF only") }
+        return model.ocrAvailable ? String(localized: "Embed searchable text")
+            : String(localized: "ocrmypdf is not installed")
+    }
 
     private var paperSelection: Binding<PaperSize?> {
         Binding(
@@ -306,15 +329,15 @@ struct ContentView: View {
 
     private var savedPresented: Binding<Bool> {
         Binding(
-            get: { model.savedPDF != nil },
-            set: { if !$0 { model.savedPDF = nil } }
+            get: { !model.savedFiles.isEmpty },
+            set: { if !$0 { model.savedFiles = [] } }
         )
     }
 
     private var overwritePresented: Binding<Bool> {
         Binding(
-            get: { model.overwriteCandidate != nil },
-            set: { if !$0 { model.overwriteCandidate = nil } }
+            get: { !model.overwriteCandidates.isEmpty },
+            set: { if !$0 { model.cancelExportOverwrite() } }
         )
     }
 
@@ -325,7 +348,7 @@ struct ContentView: View {
         panel.canCreateDirectories = true
         panel.directoryURL = model.outputFolder
         panel.prompt = String(localized: "Choose")
-        panel.message = String(localized: "Folder for the finished PDFs")
+        panel.message = String(localized: "Folder for exported files")
         if panel.runModal() == .OK, let url = panel.url {
             model.outputFolder = url
         }

@@ -42,7 +42,7 @@ struct SaneScanApp: App {
                     .disabled(model.isBusy || model.selectingScanArea || updater.isInstallingUpdate || model.selectedDevice == nil)
                 Button("Select Scan Area") { model.selectingScanArea = true }
                     .disabled(!model.canSelectScanArea || model.selectingScanArea || updater.isInstallingUpdate)
-                Button("Create PDF") { Task { await model.createPDF() } }
+                Button("Create") { Task { await model.createOutput() } }
                     .keyboardShortcut("s", modifiers: .command)
                     .disabled(model.pages.isEmpty || model.isBusy || model.selectingScanArea || updater.isInstallingUpdate)
                 Divider()

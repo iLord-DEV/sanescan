@@ -4,13 +4,13 @@
 "Scan" = "Scannen";
 "Scan Page" = "Seite scannen";
 "Scan Stack" = "Stapel scannen";
-"Create PDF" = "PDF erstellen";
+"Create" = "Erstellen";
 "Find Scanner" = "Scanner suchen";
 "New Document" = "Neues Dokument";
 "Check for Updates…" = "Nach Updates suchen …";
 "Automatically Check for Updates" = "Automatisch nach Updates suchen";
 "Update ready" = "Update bereit";
-"The update will be installed after the current scan finishes and your pages are saved as a PDF or a new document is started." = "Das Update wird installiert, sobald der aktuelle Scan beendet ist und deine Seiten als PDF gespeichert wurden oder ein neues Dokument begonnen wurde.";
+"The update will be installed after the current scan finishes and your pages are exported or a new document is started." = "Das Update wird installiert, sobald der aktuelle Scan beendet ist und deine Seiten exportiert wurden oder ein neues Dokument begonnen wurde.";
 
 /* Status bar */
 "Scanner" = "Scanner";
@@ -50,6 +50,12 @@
 
 /* Settings */
 "File name" = "Dateiname";
+"Scan %@" = "Scan %@";
+"File format" = "Dateiformat";
+"All pages in one PDF file. OCR adds searchable text." = "Alle Seiten in einer PDF-Datei. OCR ergänzt durchsuchbaren Text.";
+"All pages in one lossless TIFF file." = "Alle Seiten in einer verlustfreien TIFF-Datei.";
+"One image per page. Multiple pages get numbered file names." = "Ein Bild pro Seite. Bei mehreren Seiten werden die Dateinamen nummeriert.";
+"OCR is available for PDF only" = "OCR ist nur für PDF verfügbar";
 "Text layer (OCR)" = "Textebene (OCR)";
 "Embed searchable text" = "Durchsuchbaren Text einbetten";
 "ocrmypdf is not installed" = "ocrmypdf ist nicht installiert";
@@ -58,12 +64,12 @@
 "Resolution" = "Auflösung";
 "%lld dpi" = "%lld dpi";
 "Mode" = "Modus";
-"Paper" = "Format";
+"Paper" = "Papierformat";
 "Scan area, limited to what the scanner can cover" = "Scanbereich, wird auf die Fläche des Scanners begrenzt";
 "Source" = "Quelle";
 "The flatbed scans one page, the feeder every page loaded" = "Flachbett scannt eine Seite, der Einzug alle eingelegten Seiten";
 "Choose" = "Auswählen";
-"Folder for the finished PDFs" = "Ordner für die fertigen PDFs";
+"Folder for exported files" = "Ordner für exportierte Dateien";
 
 /* Paper sizes and modes */
 "Full bed" = "Ganze Fläche";
@@ -81,7 +87,8 @@
 "Scanning page %lld…" = "Scanne Seite %lld …";
 "Page %lld scanned" = "Seite %lld gescannt";
 "%lld pages scanned, %lld in total" = "%lld Seiten gescannt, insgesamt %lld";
-"Creating PDF with %lld page(s)…" = "Erzeuge PDF mit %lld Seite(n) …";
+"Creating %@ with %lld page(s)…" = "Erzeuge %@ mit %lld Seite(n) …";
+"%lld files saved" = "%lld Dateien gespeichert";
 "Recognizing text…" = "Texterkennung …";
 " (no text layer, OCR failed)" = " (ohne Textebene, OCR fehlgeschlagen)";
 "Saved: %@%@" = "Gespeichert: %@%@";
@@ -89,15 +96,18 @@
 /* Alerts and dialogs */
 "Error" = "Fehler";
 "OK" = "OK";
-"PDF saved" = "PDF gespeichert";
+"Export complete" = "Export abgeschlossen";
+"%lld files saved in %@" = "%lld Dateien gespeichert in %@";
 "Show in Finder" = "Im Finder zeigen";
-"Replace file?" = "Datei ersetzen?";
+"Replace files?" = "Dateien ersetzen?";
 "Replace" = "Ersetzen";
 "Cancel" = "Abbrechen";
-"%@ already exists in %@." = "%@ existiert bereits in %@.";
+"Replace %lld existing file(s) in %@?" = "%lld vorhandene Datei(en) in %@ ersetzen?";
 "Discard all scanned pages?" = "Alle gescannten Seiten verwerfen?";
 "Discard" = "Verwerfen";
-"The pages have not been saved as a PDF yet." = "Die Seiten wurden noch nicht als PDF gespeichert.";
+"This removes all scanned pages from the document." = "Dadurch werden alle gescannten Seiten aus dem Dokument entfernt.";
+"A folder already exists at %@. Choose another file name." = "Unter %@ existiert bereits ein Ordner. Bitte einen anderen Dateinamen wählen.";
+"The export could not be restored completely. Your original files are kept in %@." = "Der Export konnte nicht vollständig zurückgesetzt werden. Die ursprünglichen Dateien sind unter %@ gesichert.";
 
 /* Tool errors */
 "%@ was not found. Install it with: %@" = "%@ wurde nicht gefunden. Installation: %@";

@@ -28,7 +28,10 @@ all pages, OCR'd in German and English.
 - Produces a JPEG-compressed PDF via ImageMagick and adds a searchable text
   layer with ocrmypdf (Tesseract). If OCR fails the PDF is saved without it
   rather than aborting.
-- Remembers scanner, resolution, mode, paper size, OCR setting and output
+- Choose PDF, PNG, JPEG or TIFF before pressing **Create**. PDF and lossless
+  TIFF collect all pages in one file; PNG and JPEG export one image per page
+  with numbered names for multi-page scans. OCR is available for PDF only.
+- Remembers scanner, resolution, mode, paper size, export format, OCR setting and output
   folder between launches.
 - Fully keyboard operable, labelled for VoiceOver.
 - UI in English and German, following the system language.
@@ -130,13 +133,16 @@ them talk to USB through libusb.
    Custom areas require reported bed dimensions and last until a different
    paper preset, scanner or source is selected, or scanners are searched again.
 3. Repeat for every page. Drag pages to reorder, ⌫ removes the selected one.
-4. Pick file name, resolution, mode, paper size, OCR and output folder in the
-   settings bar.
-5. ⌘S ("PDF erstellen") writes `<folder>/<name>.pdf`. ⌘N starts a new document
-   and discards the scanned pages.
+4. Pick the file name, **File format** ("Dateiformat"), resolution, mode, paper
+   size and output folder in the settings bar. PDF also offers a text layer (OCR).
+5. Click **Create** ("Erstellen") or press ⌘S. PDF and TIFF save one file;
+   multi-page PNG/JPEG exports use `<name>-001.png` / `<name>-001.jpg`, etc.
+   Single-page image exports use the name without a number. Existing files
+   require confirmation before replacement. ⌘N starts a new document and
+   discards the scanned pages.
 
-Scanned pages live in a temporary folder until the PDF is written or a new
-document is started.
+Scanned pages remain in a temporary folder for further exports until a new
+document is started or the app exits.
 
 ## How it works
 
@@ -151,6 +157,11 @@ processes off the main thread:
    Custom areas additionally pass `-l X -t Y` for the top-left position.
 3. `magick <pages> -units PixelsPerInch -density N -compress jpeg -quality 85 raw.pdf`
 4. `ocrmypdf -l deu+eng --quiet raw.pdf final.pdf` when OCR is enabled.
+
+PNG, JPEG and TIFF exports use macOS ImageIO off the main thread, without
+ImageMagick or OCR. All output files are prepared in a temporary directory
+inside the output folder before installation. Replacement failures restore
+the original files; scanned source images are kept for retrying.
 
 ### A note on device names
 

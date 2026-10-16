@@ -6,7 +6,7 @@ download, verify and install updates from GitHub Releases. The app menu offers
 a day; installation always requires the user's choice in Sparkle's dialog.
 
 An update waits while a scan or area selection is active or the current page
-list differs from the last successfully exported PDF. Saving the PDF or
+list differs from the last successful export (PDF, PNG, JPEG or TIFF). Exporting or
 starting a new document allows a pending update to finish. New scan actions
 are disabled once installation starts.
 

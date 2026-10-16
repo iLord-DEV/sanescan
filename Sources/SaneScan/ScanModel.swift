@@ -44,8 +44,8 @@ final class ScanModel: ObservableObject {
     @Published private(set) var statusText = ""
 
     @Published var errorMessage: String?
-    @Published var savedPDF: URL?
-    @Published var overwriteCandidate: URL?
+    @Published var savedFiles: [URL] = []
+    @Published private(set) var overwriteCandidates: [URL] = []
     @Published var confirmNewDocument = false
 
     /// SANE device string of the scanner in use. Changing it reloads the capabilities.
@@ -80,6 +80,9 @@ final class ScanModel: ObservableObject {
     @Published var ocrEnabled: Bool {
         didSet { defaults.set(ocrEnabled, forKey: "ocrEnabled") }
     }
+    @Published var exportFormat: ExportFormat {
+        didSet { defaults.set(exportFormat.rawValue, forKey: "exportFormat") }
+    }
     @Published var outputFolder: URL {
         didSet { defaults.set(outputFolder.path, forKey: "outputFolder") }
     }
@@ -88,6 +91,15 @@ final class ScanModel: ObservableObject {
 
     private let defaults: UserDefaults
     private let workDirectory: URL
+    private var pendingExport: ExportRequest?
+
+    private struct ExportRequest {
+        let pages: [ScannedPage]
+        let format: ExportFormat
+        let targets: [URL]
+        let dpi: Int
+        let useOCR: Bool
+    }
 
     init(defaults: UserDefaults = .standard, temporaryDirectory: URL = FileManager.default.temporaryDirectory) {
         self.defaults = defaults
@@ -97,6 +109,7 @@ final class ScanModel: ObservableObject {
         source = defaults.string(forKey: "source")
         paperSize = PaperSize(rawValue: defaults.string(forKey: "paperSize") ?? "") ?? .a4
         ocrEnabled = defaults.object(forKey: "ocrEnabled") as? Bool ?? true
+        exportFormat = ExportFormat(rawValue: defaults.string(forKey: "exportFormat") ?? "") ?? .pdf
         selectedDeviceID = nil
 
         let desktop = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first
@@ -331,7 +344,7 @@ final class ScanModel: ObservableObject {
     }
 
     func removeSelected() {
-        guard let selection, let index = pages.firstIndex(where: { $0.id == selection }) else { return }
+        guard !isBusy, let selection, let index = pages.firstIndex(where: { $0.id == selection }) else { return }
         let page = pages.remove(at: index)
         try? FileManager.default.removeItem(at: page.url)
         let next = min(index, pages.count - 1)
@@ -339,10 +352,12 @@ final class ScanModel: ObservableObject {
     }
 
     func movePages(from source: IndexSet, to destination: Int) {
+        guard !isBusy else { return }
         pages.move(fromOffsets: source, toOffset: destination)
     }
 
     func requestNewDocument() {
+        guard !isBusy else { return }
         if pages.isEmpty {
             newDocument()
         } else {
@@ -351,6 +366,8 @@ final class ScanModel: ObservableObject {
     }
 
     func newDocument() {
+        guard !isBusy else { return }
+        cancelExportOverwrite()
         for page in pages {
             try? FileManager.default.removeItem(at: page.url)
         }
@@ -361,74 +378,101 @@ final class ScanModel: ObservableObject {
         statusText = ""
     }
 
-    // MARK: - PDF
+    // MARK: - Export
 
     var resolvedFileName: String {
-        var name = documentName.trimmingCharacters(in: .whitespacesAndNewlines)
-        if name.isEmpty {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd HHmm"
-            name = "Scan \(formatter.string(from: Date()))"
-        }
-        if name.lowercased().hasSuffix(".pdf") {
-            name = String(name.dropLast(4))
-        }
-        return name.replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-")
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HHmm"
+        return ExportFormat.baseName(documentName, fallback: String(localized: "Scan \(formatter.string(from: Date()))"))
     }
 
-    func createPDF(overwrite: Bool = false) async {
-        guard !pages.isEmpty, !isBusy, !selectingScanArea else { return }
-
-        let target = outputFolder.appendingPathComponent(resolvedFileName + ".pdf")
-        if !overwrite, FileManager.default.fileExists(atPath: target.path) {
-            overwriteCandidate = target
-            return
+    func createOutput() async {
+        guard !pages.isEmpty, !isBusy, !selectingScanArea, pendingExport == nil else { return }
+        let request = ExportRequest(
+            pages: pages, format: exportFormat,
+            targets: exportFormat.targets(in: outputFolder, baseName: resolvedFileName, pageCount: pages.count),
+            dpi: dpi, useOCR: exportFormat == .pdf && ocrEnabled && ocrAvailable
+        )
+        do {
+            let existing = try ExportTransaction.existingTargets(request.targets)
+            if !existing.isEmpty {
+                pendingExport = request
+                overwriteCandidates = existing
+                return
+            }
+            await performExport(request, overwrite: false)
+        } catch {
+            errorMessage = error.localizedDescription
         }
+    }
 
+    func cancelExportOverwrite() {
+        pendingExport = nil
+        overwriteCandidates = []
+    }
+
+    var confirmExportOverwriteAction: () -> Void {
+        // Capture the request while the dialog is presented. SwiftUI can reset
+        // its presentation binding before invoking the selected button's action.
+        let request = pendingExport
+        return { [weak self] in
+            guard let self, let request else { return }
+            self.cancelExportOverwrite()
+            Task { await self.performExport(request, overwrite: true) }
+        }
+    }
+
+    private func performExport(_ request: ExportRequest, overwrite: Bool) async {
+        guard !isBusy, !selectingScanArea else { return }
         isBusy = true
         defer { isBusy = false }
-
-        let raw = workDirectory.appendingPathComponent("raw-\(UUID().uuidString).pdf")
-        defer { try? FileManager.default.removeItem(at: raw) }
-
+        savedFiles = []
         do {
-            statusText = String(localized: "Creating PDF with \(pages.count) page(s)…")
-            var arguments = pages.map(\.url.path)
-            arguments += [
-                "-units", "PixelsPerInch",
-                "-density", "\(dpi)",
-                "-compress", "jpeg",
-                "-quality", "85",
-                raw.path,
-            ]
-            try await Tools.runChecked("magick", arguments)
-
+            let transaction = try ExportTransaction(targets: request.targets)
+            statusText = String(localized: "Creating \(request.format.label) with \(request.pages.count) page(s)…")
             var ocrNote = ""
-            if ocrEnabled && ocrAvailable {
-                statusText = String(localized: "Recognizing text…")
-                let result = try await Tools.run("ocrmypdf", ["-l", "deu+eng", "--quiet", raw.path, target.path])
-                if !result.succeeded {
-                    ocrNote = String(localized: " (no text layer, OCR failed)")
-                    try replaceFile(at: target, with: raw)
-                }
+            if request.format == .pdf {
+                ocrNote = try await writePDF(request, into: transaction)
             } else {
-                try replaceFile(at: target, with: raw)
+                let urls = request.pages.map(\.url)
+                let destinations = transaction.stagedFiles
+                let format = request.format
+                let resolution = request.dpi
+                try await Task.detached {
+                    try ImageExporter.write(pages: urls, format: format, dpi: resolution, destinations: destinations)
+                }.value
             }
-
-            statusText = String(localized: "Saved: \(target.lastPathComponent)\(ocrNote)")
-            savedPageIDs = pages.map(\.id)
-            savedPDF = target
+            try transaction.commit(overwrite: overwrite)
+            if request.targets.count == 1, let target = request.targets.first {
+                statusText = String(localized: "Saved: \(target.lastPathComponent)\(ocrNote)")
+            } else {
+                statusText = String(localized: "\(request.targets.count) files saved")
+            }
+            savedPageIDs = request.pages.map(\.id)
+            savedFiles = request.targets
         } catch {
             statusText = ""
             errorMessage = error.localizedDescription
         }
     }
 
-    private func replaceFile(at target: URL, with source: URL) throws {
-        if FileManager.default.fileExists(atPath: target.path) {
-            try FileManager.default.removeItem(at: target)
+    private func writePDF(_ request: ExportRequest, into transaction: ExportTransaction) async throws -> String {
+        let raw = transaction.directory.appendingPathComponent("raw.pdf")
+        let target = transaction.stagedFiles[0]
+        var arguments = request.pages.map(\.url.path)
+        arguments += ["-units", "PixelsPerInch", "-density", "\(request.dpi)",
+                      "-compress", "jpeg", "-quality", "85", raw.path]
+        try await Tools.runChecked("magick", arguments)
+        if request.useOCR {
+            statusText = String(localized: "Recognizing text…")
+            let result = try await Tools.run("ocrmypdf", ["-l", "deu+eng", "--quiet", raw.path, target.path])
+            if result.succeeded { return "" }
+            try? FileManager.default.removeItem(at: target)
+            try FileManager.default.copyItem(at: raw, to: target)
+            return String(localized: " (no text layer, OCR failed)")
         }
-        try FileManager.default.copyItem(at: source, to: target)
+        try FileManager.default.copyItem(at: raw, to: target)
+        return ""
     }
 
     // MARK: - Helpers
